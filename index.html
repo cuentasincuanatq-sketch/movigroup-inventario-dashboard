@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoviGroup · Dashboard Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:      #0a1628;
+    --navy-mid:  #0f2040;
+    --navy-card: #142236;
+    --navy-border: #1e3a5f;
+    --accent:    #2563eb;
+    --accent2:   #1d4ed8;
+    --gold:      #f59e0b;
+    --green:     #10b981;
+    --red:       #ef4444;
+    --orange:    #f97316;
+    --purple:    #8b5cf6;
+    --cyan:      #06b6d4;
+    --text:      #e2e8f0;
+    --text-muted:#7a94b4;
+    --text-dim:  #4a6280;
+    --font: 'Sora', sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:var(--font);
+    background:var(--navy);
+    color:var(--text);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar{
+    background:var(--navy-mid);
+    border-bottom:1px solid var(--navy-border);
+    padding:0 28px;
+    height:60px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    position:sticky;top:0;z-index:100;
+  }
+  .topbar-brand{display:flex;align-items:center;gap:12px;}
+  .topbar-logo{
+    width:36px;height:36px;
+    background:var(--accent);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;font-weight:700;color:#fff;
+  }
+  .topbar-title{font-size:15px;font-weight:600;color:#fff;}
+  .topbar-title span{font-weight:300;color:var(--text-muted);}
+  .topbar-right{display:flex;align-items:center;gap:16px;}
+  #last-update{font-size:11px;color:var(--text-muted);}
+  .btn-refresh{
+    background:var(--navy-card);border:1px solid var(--navy-border);
+    color:var(--text);font-family:var(--font);font-size:12px;
+    padding:6px 14px;border-radius:6px;cursor:pointer;
+    display:flex;align-items:center;gap:6px;transition:all .2s;
+  }
+  .btn-refresh:hover{background:var(--accent);border-color:var(--accent);}
+  .spin{animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ── TABS ── */
+  .tabs{
+    background:var(--navy-mid);
+    border-bottom:1px solid var(--navy-border);
+    display:flex;padding:0 28px;gap:4px;
+  }
+  .tab{
+    padding:12px 20px;font-size:13px;font-weight:500;
+    color:var(--text-muted);cursor:pointer;
+    border-bottom:2px solid transparent;transition:all .2s;
+    white-space:nowrap;
+  }
+  .tab:hover{color:var(--text);}
+  .tab.active{color:#fff;border-bottom-color:var(--accent);}
+
+  /* ── MAIN ── */
+  main{padding:24px 28px;max-width:1600px;margin:0 auto;}
+
+  /* ── SECTION HEADER ── */
+  .section-title{
+    font-size:12px;font-weight:600;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--text-muted);
+    margin-bottom:14px;margin-top:28px;
+  }
+  .section-title:first-child{margin-top:0;}
+
+  /* ── KPI CARDS ── */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+    gap:12px;margin-bottom:8px;
+  }
+  .kpi{
+    background:var(--navy-card);
+    border:1px solid var(--navy-border);
+    border-radius:10px;
+    padding:16px;
+    position:relative;overflow:hidden;
+    transition:transform .2s,box-shadow .2s;
+  }
+  .kpi:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .kpi::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:var(--kpi-color,var(--accent));
+  }
+  .kpi-label{font-size:11px;color:var(--text-muted);font-weight:500;margin-bottom:8px;}
+  .kpi-val{font-size:26px;font-weight:700;line-height:1;color:#fff;}
+  .kpi-sub{font-size:11px;color:var(--text-muted);margin-top:6px;}
+  .kpi-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:28px;opacity:.12;}
+
+  /* ── CHART GRID ── */
+  .chart-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+    gap:16px;margin-top:8px;
+  }
+  .chart-grid.wide{grid-template-columns:repeat(auto-fill,minmax(500px,1fr));}
+  .card{
+    background:var(--navy-card);
+    border:1px solid var(--navy-border);
+    border-radius:12px;padding:20px;
+  }
+  .card-title{
+    font-size:12px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--text-muted);margin-bottom:16px;
+  }
+  .chart-wrap{position:relative;height:220px;}
+  .chart-wrap.tall{height:280px;}
+
+  /* ── TABLE ── */
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead th{
+    padding:10px 12px;text-align:left;
+    font-size:10px;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--text-muted);
+    border-bottom:1px solid var(--navy-border);
+    background:var(--navy-mid);
+    position:sticky;top:0;
+  }
+  tbody tr{border-bottom:1px solid rgba(30,58,95,.5);transition:background .15s;}
+  tbody tr:hover{background:rgba(37,99,235,.08);}
+  tbody td{padding:9px 12px;color:var(--text);}
+  .badge{
+    display:inline-block;padding:2px 8px;border-radius:4px;
+    font-size:10px;font-weight:600;text-transform:uppercase;
+  }
+  .badge-green{background:rgba(16,185,129,.15);color:#34d399;}
+  .badge-red{background:rgba(239,68,68,.15);color:#f87171;}
+  .badge-blue{background:rgba(37,99,235,.15);color:#60a5fa;}
+  .badge-orange{background:rgba(249,115,22,.15);color:#fb923c;}
+  .badge-gray{background:rgba(100,116,139,.15);color:#94a3b8;}
+  .badge-purple{background:rgba(139,92,246,.15);color:#a78bfa;}
+
+  /* ── PANEL VIEWS ── */
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* ── LOADING ── */
+  #loading{
+    position:fixed;inset:0;
+    background:var(--navy);z-index:999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  }
+  .loader-ring{
+    width:48px;height:48px;border-radius:50%;
+    border:3px solid var(--navy-border);
+    border-top-color:var(--accent);
+    animation:spin 1s linear infinite;
+  }
+  #loading p{font-size:13px;color:var(--text-muted);}
+
+  /* ── FILTERS ── */
+  .filter-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  .filter-select{
+    background:var(--navy-card);border:1px solid var(--navy-border);
+    color:var(--text);font-family:var(--font);font-size:12px;
+    padding:7px 12px;border-radius:7px;cursor:pointer;outline:none;
+    min-width:140px;
+  }
+  .filter-select:focus{border-color:var(--accent);}
+
+  /* ── DISPONIBLES GRID ── */
+  .vehi-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:12px;
+  }
+  .vehi-card{
+    background:var(--navy-card);border:1px solid var(--navy-border);
+    border-radius:10px;padding:16px;transition:all .2s;
+  }
+  .vehi-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .vehi-card-brand{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;margin-bottom:4px;}
+  .vehi-card-model{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;}
+  .vehi-card-version{font-size:11px;color:var(--text-muted);margin-bottom:10px;}
+  .vehi-card-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .vehi-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--text-muted);}
+  .vehi-card-price{font-size:18px;font-weight:700;color:var(--accent);}
+  .vehi-card-placa{font-size:11px;color:var(--text-muted);margin-top:4px;}
+
+  /* ── TOP RANKING ── */
+  .rank-list{display:flex;flex-direction:column;gap:8px;}
+  .rank-item{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 10px;border-radius:8px;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);
+  }
+  .rank-num{font-size:12px;font-weight:700;color:var(--text-dim);width:20px;text-align:center;}
+  .rank-label{flex:1;font-size:12px;color:var(--text);}
+  .rank-val{font-size:13px;font-weight:700;color:var(--accent);}
+  .rank-bar-wrap{width:80px;height:4px;background:var(--navy-border);border-radius:2px;}
+  .rank-bar{height:4px;border-radius:2px;background:var(--accent);}
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--navy-border);border-radius:3px;}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:600px){
+    main{padding:16px;}
+    .topbar{padding:0 16px;}
+    .tabs{padding:0 16px;overflow-x:auto;}
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+    <div style="width:36px;height:36px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;">M</div>
+    <span style="font-size:18px;font-weight:700;color:#fff;">MoviGroup</span>
+  </div>
+  <div class="loader-ring"></div>
+  <p>Cargando inventario…</p>
+</div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">M</div>
+    <div>
+      <div class="topbar-title">MoviGroup <span>· Dashboard Inventario</span></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="last-update">—</span>
+    <button class="btn-refresh" onclick="loadData()">
+      <span id="refresh-icon">↻</span> Actualizar
+    </button>
+  </div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+  <div class="tab active" data-tab="resumen">📊 Resumen</div>
+  <div class="tab" data-tab="inventario">📋 Inventario</div>
+  <div class="tab" data-tab="disponibles">🚗 Disponibles</div>
+  <div class="tab" data-tab="asesores">👥 Asesores</div>
+</nav>
+
+<main>
+
+  <!-- ══════════════════════════════════
+       TAB: RESUMEN
+  ══════════════════════════════════ -->
+  <div class="tab-panel active" id="tab-resumen">
+
+    <p class="section-title">Estado General del Inventario</p>
+    <div class="kpi-grid" id="kpi-general"></div>
+
+    <p class="section-title">Financiero</p>
+    <div class="kpi-grid" id="kpi-financiero"></div>
+
+    <p class="section-title">Análisis Visual</p>
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-title">Estado del Inventario</div>
+        <div class="chart-wrap"><canvas id="chart-estado"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Tipo de Combustible</div>
+        <div class="chart-wrap"><canvas id="chart-combustible"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Marcas más vendidas (Top 10)</div>
+        <div class="chart-wrap tall"><canvas id="chart-marcas"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Año Modelo — Distribución</div>
+        <div class="chart-wrap tall"><canvas id="chart-anio"></canvas></div>
+      </div>
+    </div>
+
+    <p class="section-title" style="margin-top:28px;">Ciudades y Disponibilidad</p>
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-title">Top Ciudades (Clientes)</div>
+        <div class="chart-wrap tall"><canvas id="chart-ciudades"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Disponibles por Ubicación</div>
+        <div class="chart-wrap"><canvas id="chart-ubicacion"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       TAB: INVENTARIO COMPLETO
+  ══════════════════════════════════ -->
+  <div class="tab-panel" id="tab-inventario">
+    <div class="filter-row">
+      <select class="filter-select" id="fil-estado" onchange="renderTabla()">
+        <option value="">— Estado —</option>
+      </select>
+      <select class="filter-select" id="fil-marca" onchange="renderTabla()">
+        <option value="">— Marca —</option>
+      </select>
+      <select class="filter-select" id="fil-combustible" onchange="renderTabla()">
+        <option value="">— Combustible —</option>
+      </select>
+      <select class="filter-select" id="fil-asesor" onchange="renderTabla()">
+        <option value="">— Asesor —</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap" style="max-height:560px;overflow-y:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Publicación</th>
+              <th>Marca</th>
+              <th>Línea</th>
+              <th>Año</th>
+              <th>Placa</th>
+              <th>Color</th>
+              <th>Km</th>
+              <th>Combustible</th>
+              <th>V. Contrato</th>
+              <th>V. Venta</th>
+              <th>Asesor</th>
+              <th>Ciudad</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-inventario"></tbody>
+        </table>
+      </div>
+    </div>
+    <p id="tabla-count" style="font-size:11px;color:var(--text-muted);margin-top:10px;"></p>
+  </div>
+
+  <!-- ══════════════════════════════════
+       TAB: DISPONIBLES
+  ══════════════════════════════════ -->
+  <div class="tab-panel" id="tab-disponibles">
+    <div class="filter-row">
+      <select class="filter-select" id="fil-disp-ubic" onchange="renderDisponibles()">
+        <option value="">— Ubicación —</option>
+      </select>
+      <select class="filter-select" id="fil-disp-comb" onchange="renderDisponibles()">
+        <option value="">— Combustible —</option>
+      </select>
+    </div>
+    <div class="kpi-grid" id="kpi-disp" style="margin-bottom:20px;"></div>
+    <div class="vehi-grid" id="grid-disponibles"></div>
+    <p id="disp-count" style="font-size:11px;color:var(--text-muted);margin-top:12px;"></p>
+  </div>
+
+  <!-- ══════════════════════════════════
+       TAB: ASESORES
+  ══════════════════════════════════ -->
+  <div class="tab-panel" id="tab-asesores">
+    <div class="kpi-grid" id="kpi-asesores" style="margin-bottom:20px;"></div>
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-title">Vehículos por Asesor</div>
+        <div class="chart-wrap tall"><canvas id="chart-asesores"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ranking — Ventas por Asesor</div>
+        <div id="rank-asesores" class="rank-list" style="max-height:320px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <p class="section-title" style="margin-top:28px;">Detalle por Asesor Comercial</p>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Asesor</th>
+              <th>Total vehículos</th>
+              <th>Vendidos</th>
+              <th>En venta</th>
+              <th>Retiro</th>
+              <th>Marcas frecuentes</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-asesores"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIGURACIÓN
+════════════════════════════════════════ */
+const APPS_SCRIPT_URL = 'AKfycbwibDP7Iv-jLvwhYQ6jFfr9THhk_vufqG7QW8gTC_IqOiV-SJlVmsU6iMKgsiW7PwEp6g/exec';
+
+let DATA = { inventario: [], disponibles: [] };
+let charts = {};
+
+/* ════════════════════════════════════════
+   TABS
+════════════════════════════════════════ */
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+/* ════════════════════════════════════════
+   CARGA DE DATOS
+════════════════════════════════════════ */
+async function loadData() {
+  const icon = document.getElementById('refresh-icon');
+  icon.classList.add('spin');
+  try {
+    const res  = await fetch(`https://script.google.com/macros/s/${APPS_SCRIPT_URL}`, { redirect: 'follow' });
+    const json = await res.json();
+    parseData(json);
+    renderAll();
+    document.getElementById('last-update').textContent =
+      'Actualizado: ' + new Date().toLocaleString('es-CO', { hour12: false });
+  } catch(e) {
+    console.error('Error cargando datos:', e);
+    // Fallback con datos embebidos
+    useEmbeddedData();
+  } finally {
+    icon.classList.remove('spin');
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+/* ── Parse respuesta Apps Script ── */
+function parseData(json) {
+  // Soporta tanto { INVENTARIO: [[...]], VEHICULOS DISPONIBLE: [[...]] }
+  // como { data: [...] } según el formato del script
+  const raw = json.INVENTARIO || json.inventario || json;
+  const rawDisp = json['VEHICULOS DISPONIBLE'] || json.disponibles || [];
+
+  const COLS_INV = {
+    fecha: 1, estado: 4, publicacion: 5, fechaVenta: 6, hn: 7,
+    asesor: 8, inventario: 9, linea: 10, marca: 11, version: 12,
+    anio: 13, km: 14, placa: 15, x: 16, color: 17, combustible: 18,
+    valorContrato: 19, reconsideracion: 20, precioVenta: 21,
+    ciudad: 30, prenda: 31, valorPrenda: 32
+  };
+  const COLS_DISP = {
+    fecha: 0, inventario: 1, linea: 2, marca: 3, version: 4,
+    anio: 5, km: 6, placa: 7, x: 8, color: 9, combustible: 10,
+    precio: 11, soat: 12, rtm: 13, ciudad: 14
+  };
+
+  const rows = Array.isArray(raw) ? raw : [];
+  DATA.inventario = rows
+    .slice(1) // skip header
+    .filter(r => Array.isArray(r) && r.length > 5)
+    .map(r => ({
+      fecha: r[COLS_INV.fecha] || '',
+      estado: String(r[COLS_INV.estado] || '').trim(),
+      publicacion: String(r[COLS_INV.publicacion] || '').trim(),
+      fechaVenta: r[COLS_INV.fechaVenta] || '',
+      asesor: String(r[COLS_INV.asesor] || '').trim(),
+      inventario: String(r[COLS_INV.inventario] || '').trim(),
+      linea: String(r[COLS_INV.linea] || '').trim(),
+      marca: String(r[COLS_INV.marca] || '').trim(),
+      version: String(r[COLS_INV.version] || '').trim(),
+      anio: Number(r[COLS_INV.anio]) || 0,
+      km: r[COLS_INV.km],
+      placa: String(r[COLS_INV.placa] || '').trim().toUpperCase(),
+      color: String(r[COLS_INV.color] || '').trim(),
+      combustible: String(r[COLS_INV.combustible] || '').trim(),
+      valorContrato: parseMoney(r[COLS_INV.valorContrato]),
+      precioVenta: parseMoney(r[COLS_INV.precioVenta]),
+      ciudad: String(r[COLS_INV.ciudad] || '').trim(),
+      prenda: String(r[COLS_INV.prenda] || '').trim(),
+    }))
+    .filter(r => r.marca || r.linea);
+
+  const rowsDisp = Array.isArray(rawDisp) ? rawDisp : [];
+  DATA.disponibles = rowsDisp
+    .slice(1)
+    .filter(r => Array.isArray(r) && r.length > 5)
+    .map(r => ({
+      fecha: r[COLS_DISP.fecha] || '',
+      ubicacion: String(r[COLS_DISP.inventario] || '').trim(),
+      linea: String(r[COLS_DISP.linea] || '').trim(),
+      marca: String(r[COLS_DISP.marca] || '').trim(),
+      version: String(r[COLS_DISP.version] || '').trim(),
+      anio: Number(r[COLS_DISP.anio]) || 0,
+      km: r[COLS_DISP.km],
+      placa: String(r[COLS_DISP.placa] || '').trim().toUpperCase(),
+      color: String(r[COLS_DISP.color] || '').trim(),
+      combustible: String(r[COLS_DISP.combustible] || '').trim(),
+      precio: parseMoney(r[COLS_DISP.precio]),
+      ciudad: String(r[COLS_DISP.ciudad] || '').trim(),
+    }))
+    .filter(r => r.marca || r.linea);
+}
+
+function parseMoney(v) {
+  if (!v && v !== 0) return 0;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/[$.\s]/g, '').replace(/,/g, '');
+  return parseInt(s) || 0;
+}
+
+/* ════════════════════════════════════════
+   RENDER ALL
+════════════════════════════════════════ */
+function renderAll() {
+  renderResumen();
+  poblarFiltros();
+  renderTabla();
+  renderDisponibles();
+  renderAsesores();
+}
+
+/* ════════════════════════════════════════
+   TAB: RESUMEN
+════════════════════════════════════════ */
+function renderResumen() {
+  const inv = DATA.inventario;
+  const disp = DATA.disponibles;
+
+  // ── Conteos de estado
+  const total   = inv.length;
+  const vendidos = inv.filter(r => /vendido/i.test(r.publicacion)).length;
+  const aVenta  = inv.filter(r => /a venta/i.test(r.estado)).length;
+  const retiro  = inv.filter(r => /retiro|devoluci/i.test(r.publicacion)).length;
+  const pausado = inv.filter(r => /pausad/i.test(r.estado)).length;
+  const disponibles = disp.length;
+  const conPrenda = inv.filter(r => r.prenda && r.prenda !== 'N/A' && r.prenda !== '' && !/n\/a/i.test(r.prenda)).length;
+
+  // ── Financiero
+  const preciosV = inv.filter(r => r.precioVenta > 100000).map(r => r.precioVenta);
+  const contratosV = inv.filter(r => r.valorContrato > 100000).map(r => r.valorContrato);
+  const totalVenta = preciosV.reduce((a,b) => a+b, 0);
+  const totalContrato = contratosV.reduce((a,b) => a+b, 0);
+  const promVenta = preciosV.length ? totalVenta / preciosV.length : 0;
+  const promContrato = contratosV.length ? totalContrato / contratosV.length : 0;
+  const margenProm = promVenta && promContrato ? ((promVenta - promContrato) / promContrato * 100) : 0;
+
+  // ── KPIs generales
+  document.getElementById('kpi-general').innerHTML = [
+    kpi('Total Inventario', total, '', '📦', '--accent'),
+    kpi('Vendidos', vendidos, pct(vendidos,total), '✅', '--green'),
+    kpi('A la Venta', aVenta, 'activos en venta', '🏷️', '--accent'),
+    kpi('Retirados/Dev.', retiro, pct(retiro,total), '↩️', '--orange'),
+    kpi('Pausados', pausado, '', '⏸️', '--text-muted'),
+    kpi('Disponibles', disponibles, 'hoja Disponibles', '🚗', '--cyan'),
+    kpi('Con Prenda', conPrenda, pct(conPrenda,total), '🔒', '--purple'),
+    kpi('Sin Prenda', total-conPrenda, pct(total-conPrenda,total), '✓', '--gold'),
+  ].join('');
+
+  // ── KPIs financieros
+  document.getElementById('kpi-financiero').innerHTML = [
+    kpi('Total Valor Venta', formatM(totalVenta), 'suma precios de venta', '💰', '--green'),
+    kpi('Total Contratos', formatM(totalContrato), 'suma valor contratos', '📄', '--accent'),
+    kpi('Precio Venta Prom.', formatM(promVenta), 'por vehículo', '📈', '--gold'),
+    kpi('Contrato Prom.', formatM(promContrato), 'por vehículo', '📋', '--cyan'),
+    kpi('Margen Bruto Prom.', margenProm.toFixed(1) + '%', 'sobre valor contrato', '📊', '--purple'),
+  ].join('');
+
+  // ── Gráficas
+  drawEstado(inv);
+  drawCombustible(inv);
+  drawMarcas(inv);
+  drawAnio(inv);
+  drawCiudades(inv);
+  drawUbicacion(disp);
+}
+
+function kpi(label, val, sub, icon, color) {
+  return `<div class="kpi" style="--kpi-color:var(${color})">
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-val">${val}</div>
+    ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}
+    <div class="kpi-icon">${icon}</div>
+  </div>`;
+}
+
+function pct(n, total) { return total ? `${((n/total)*100).toFixed(1)}% del total` : ''; }
+function formatM(v) {
+  if (!v) return '$0';
+  if (v >= 1e9) return '$' + (v/1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return '$' + (v/1e6).toFixed(0) + 'M';
+  return '$' + v.toLocaleString('es-CO');
+}
+
+/* ── Gráficas ── */
+const PALETTE = [
+  '#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6',
+  '#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6',
+  '#a855f7','#fb923c','#34d399','#60a5fa','#fbbf24',
+];
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+function mkChart(id, type, labels, data, opts={}) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: opts.colors || PALETTE,
+        borderColor: opts.line ? (opts.colors || '#2563eb') : 'transparent',
+        borderWidth: opts.line ? 2 : 0,
+        fill: false,
+        tension: 0.3,
+        ...( opts.barColor ? { backgroundColor: opts.barColor } : {} ),
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: opts.legend !== undefined ? opts.legend : true,
+          labels: { color: '#7a94b4', boxWidth: 12, font: { family: 'Sora', size: 11 } } },
+        tooltip: { callbacks: {
+          label: ctx => {
+            const v = ctx.raw;
+            if (typeof v === 'number' && v > 1e5) return ' $' + formatM(v);
+            return ' ' + (v?.toLocaleString?.('es-CO') ?? v);
+          }
+        }}
+      },
+      scales: opts.noScales ? undefined : {
+        x: { ticks: { color: '#7a94b4', font: { family: 'Sora', size: 10 } },
+             grid: { color: 'rgba(30,58,95,.4)' } },
+        y: { ticks: { color: '#7a94b4', font: { family: 'Sora', size: 10 } },
+             grid: { color: 'rgba(30,58,95,.4)' } }
+      },
+      indexAxis: opts.horizontal ? 'y' : 'x',
+      ...opts.extra,
+    }
+  });
+}
+
+function countBy(arr, fn) {
+  const m = {};
+  arr.forEach(r => { const k = fn(r); if(k) m[k] = (m[k]||0)+1; });
+  return m;
+}
+function topN(map, n=10) {
+  return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+
+function drawEstado(inv) {
+  const m = countBy(inv, r => {
+    if (/vendido/i.test(r.publicacion)) return 'Vendido';
+    if (/retiro/i.test(r.publicacion)) return 'Retiro';
+    if (/a venta/i.test(r.estado)) return 'A la venta';
+    if (/pausad/i.test(r.estado)) return 'Pausado';
+    return 'Otro';
+  });
+  const e = topN(m, 10);
+  mkChart('chart-estado','doughnut', e.map(x=>x[0]), e.map(x=>x[1]),
+    { noScales:true, colors:['#10b981','#ef4444','#2563eb','#f59e0b','#8b5cf6'] });
+}
+function drawCombustible(inv) {
+  const m = countBy(inv, r => r.combustible || 'No especificado');
+  const e = topN(m, 8);
+  mkChart('chart-combustible','doughnut', e.map(x=>x[0]), e.map(x=>x[1]),
+    { noScales:true });
+}
+function drawMarcas(inv) {
+  const m = countBy(inv, r => r.marca);
+  const e = topN(m, 10);
+  mkChart('chart-marcas','bar', e.map(x=>x[0]), e.map(x=>x[1]),
+    { legend:false, barColor: PALETTE, noScales:false, horizontal:true });
+}
+function drawAnio(inv) {
+  const m = countBy(inv, r => r.anio > 2000 ? String(r.anio) : null);
+  const e = Object.entries(m).sort((a,b)=>a[0]-b[0]);
+  mkChart('chart-anio','bar', e.map(x=>x[0]), e.map(x=>x[1]),
+    { legend:false, barColor:'#2563eb' });
+}
+function drawCiudades(inv) {
+  const m = countBy(inv, r => r.ciudad || null);
+  const e = topN(m, 10);
+  mkChart('chart-ciudades','bar', e.map(x=>x[0]), e.map(x=>x[1]),
+    { legend:false, barColor: PALETTE, horizontal:true });
+}
+function drawUbicacion(disp) {
+  const m = countBy(disp, r => r.ubicacion || 'Sin especificar');
+  const e = topN(m);
+  mkChart('chart-ubicacion','doughnut', e.map(x=>x[0]), e.map(x=>x[1]),
+    { noScales:true });
+}
+
+/* ════════════════════════════════════════
+   TAB: INVENTARIO — TABLA
+════════════════════════════════════════ */
+function poblarFiltros() {
+  const inv = DATA.inventario;
+  function fillSelect(id, values) {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = sel.options[0].outerHTML;
+    [...new Set(values.filter(Boolean).map(v=>v.trim()))].sort().forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+    if (cur) sel.value = cur;
+  }
+  fillSelect('fil-estado',      inv.map(r => r.publicacion || r.estado));
+  fillSelect('fil-marca',       inv.map(r => r.marca));
+  fillSelect('fil-combustible', inv.map(r => r.combustible));
+  fillSelect('fil-asesor',      inv.map(r => r.asesor));
+
+  // Disponibles
+  fillSelect('fil-disp-ubic',   DATA.disponibles.map(r => r.ubicacion));
+  fillSelect('fil-disp-comb',   DATA.disponibles.map(r => r.combustible));
+}
+
+function estadoBadge(r) {
+  const pub = r.publicacion.toUpperCase();
+  const est = r.estado.toUpperCase();
+  if (/VENDIDO/.test(pub))       return '<span class="badge badge-green">Vendido</span>';
+  if (/RETIRO|DEVOLUCI/.test(pub)) return '<span class="badge badge-red">Retiro</span>';
+  if (/A VENTA/.test(est))       return '<span class="badge badge-blue">A Venta</span>';
+  if (/PAUSAD/.test(est))        return '<span class="badge badge-orange">Pausado</span>';
+  if (/SEPARAD/.test(est))       return '<span class="badge badge-purple">Separado</span>';
+  return `<span class="badge badge-gray">${r.publicacion || r.estado}</span>`;
+}
+
+function renderTabla() {
+  const est  = document.getElementById('fil-estado').value;
+  const marc = document.getElementById('fil-marca').value;
+  const comb = document.getElementById('fil-combustible').value;
+  const ases = document.getElementById('fil-asesor').value;
+
+  let rows = DATA.inventario.filter(r => {
+    if (est  && r.publicacion !== est  && r.estado !== est) return false;
+    if (marc && r.marca !== marc) return false;
+    if (comb && r.combustible !== comb) return false;
+    if (ases && r.asesor !== ases) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('tabla-inventario');
+  tbody.innerHTML = rows.slice(0, 400).map((r, i) => `
+    <tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td>${fmtDate(r.fecha)}</td>
+      <td>${estadoBadge(r)}</td>
+      <td style="font-size:10px;color:var(--text-muted)">${r.publicacion}</td>
+      <td style="font-weight:600">${r.marca}</td>
+      <td>${r.linea}</td>
+      <td>${r.anio || '—'}</td>
+      <td style="font-family:monospace;letter-spacing:.05em">${r.placa}</td>
+      <td style="font-size:11px">${r.color}</td>
+      <td style="font-size:11px">${fmtKm(r.km)}</td>
+      <td><span class="badge badge-gray" style="font-size:9px">${r.combustible||'—'}</span></td>
+      <td style="color:var(--text-muted);font-size:11px">${r.valorContrato > 0 ? formatM(r.valorContrato) : '—'}</td>
+      <td style="color:var(--accent);font-weight:600">${r.precioVenta > 0 ? formatM(r.precioVenta) : '—'}</td>
+      <td style="font-size:11px">${r.asesor}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${r.ciudad}</td>
+    </tr>
+  `).join('');
+  document.getElementById('tabla-count').textContent =
+    `Mostrando ${Math.min(rows.length,400)} de ${rows.length} registros`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt)) return String(d).substring(0,10);
+    return dt.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit' });
+  } catch { return '—'; }
+}
+function fmtKm(km) {
+  if (!km && km !== 0) return '—';
+  const n = Number(km);
+  if (isNaN(n)) return '—';
+  return n.toLocaleString('es-CO') + ' km';
+}
+
+/* ════════════════════════════════════════
+   TAB: DISPONIBLES
+════════════════════════════════════════ */
+function renderDisponibles() {
+  const ubic = document.getElementById('fil-disp-ubic').value;
+  const comb = document.getElementById('fil-disp-comb').value;
+  let rows = DATA.disponibles.filter(r => {
+    if (ubic && r.ubicacion !== ubic) return false;
+    if (comb && r.combustible !== comb) return false;
+    return true;
+  });
+
+  // KPIs
+  const precios = rows.filter(r => r.precio > 100000).map(r => r.precio);
+  const prom    = precios.length ? precios.reduce((a,b)=>a+b,0)/precios.length : 0;
+  const minP    = precios.length ? Math.min(...precios) : 0;
+  const maxP    = precios.length ? Math.max(...precios) : 0;
+  document.getElementById('kpi-disp').innerHTML = [
+    kpi('Total Disponibles', rows.length, '', '🚗', '--cyan'),
+    kpi('Precio Prom.', formatM(prom), 'promedio lista', '💰', '--gold'),
+    kpi('Precio Mín.', formatM(minP), '', '⬇️', '--green'),
+    kpi('Precio Máx.', formatM(maxP), '', '⬆️', '--red'),
+  ].join('');
+
+  // Cards
+  document.getElementById('grid-disponibles').innerHTML = rows.map(r => `
+    <div class="vehi-card">
+      <div class="vehi-card-brand">${r.marca}</div>
+      <div class="vehi-card-model">${r.linea}</div>
+      <div class="vehi-card-version">${r.version || '—'}</div>
+      <div class="vehi-card-meta">
+        <span class="vehi-tag">📅 ${r.anio || '—'}</span>
+        <span class="vehi-tag">⛽ ${r.combustible || '—'}</span>
+        <span class="vehi-tag">🏙️ ${r.ciudad || '—'}</span>
+        ${r.km ? `<span class="vehi-tag">🛣️ ${fmtKm(r.km)}</span>` : ''}
+        <span class="vehi-tag">📍 ${r.ubicacion || '—'}</span>
+      </div>
+      <div class="vehi-card-price">${r.precio > 100000 ? formatM(r.precio) : '—'}</div>
+      <div class="vehi-card-placa">${r.placa} · ${r.color}</div>
+    </div>
+  `).join('');
+  document.getElementById('disp-count').textContent =
+    `${rows.length} vehículo${rows.length !== 1 ? 's' : ''} disponible${rows.length !== 1 ? 's' : ''}`;
+}
+
+/* ════════════════════════════════════════
+   TAB: ASESORES
+════════════════════════════════════════ */
+function renderAsesores() {
+  const inv = DATA.inventario;
+  const byAsesor = {};
+  inv.forEach(r => {
+    const a = r.asesor || 'Sin asignar';
+    if (!byAsesor[a]) byAsesor[a] = { total:0, vendidos:0, aVenta:0, retiro:0, marcas:{} };
+    byAsesor[a].total++;
+    if (/vendido/i.test(r.publicacion)) byAsesor[a].vendidos++;
+    else if (/a venta/i.test(r.estado)) byAsesor[a].aVenta++;
+    else if (/retiro|devoluci/i.test(r.publicacion)) byAsesor[a].retiro++;
+    if (r.marca) byAsesor[a].marcas[r.marca] = (byAsesor[a].marcas[r.marca]||0)+1;
+  });
+  const sorted = Object.entries(byAsesor).sort((a,b)=>b[1].vendidos-a[1].vendidos);
+  const top5   = sorted.slice(0,5);
+
+  // KPIs asesores
+  document.getElementById('kpi-asesores').innerHTML = [
+    kpi('Total Asesores', sorted.length, 'registrados', '👥', '--accent'),
+    kpi('Top Vendedor', top5[0]?.[0]||'—', (top5[0]?.[1].vendidos||0)+' vendidos', '🏆', '--gold'),
+    kpi('Mayor Cartera', sorted.sort((a,b)=>b[1].aVenta-a[1].aVenta)[0]?.[0]||'—',
+        sorted[0]?.[1].aVenta+' a la venta', '📋', '--cyan'),
+  ].join('');
+  // restore sort
+  sorted.sort((a,b)=>b[1].vendidos-a[1].vendidos);
+
+  // Chart
+  const top10 = sorted.slice(0,10);
+  mkChart('chart-asesores','bar',
+    top10.map(x=>x[0].split(' ')[0]),
+    top10.map(x=>x[1].total),
+    { legend:false, barColor: PALETTE, horizontal:true }
+  );
+
+  // Ranking
+  const maxV = top10[0]?.[1].vendidos || 1;
+  document.getElementById('rank-asesores').innerHTML = sorted.slice(0,15).map((e,i) => `
+    <div class="rank-item">
+      <div class="rank-num">${i+1}</div>
+      <div style="flex:1">
+        <div class="rank-label">${e[0]}</div>
+        <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(e[1].vendidos/maxV*100).toFixed(0)}%"></div></div>
+      </div>
+      <div class="rank-val">${e[1].vendidos}</div>
+    </div>
+  `).join('');
+
+  // Tabla
+  document.getElementById('tabla-asesores').innerHTML = sorted.map(([name, d]) => {
+    const topM = topN(d.marcas, 3).map(x=>x[0]).join(', ');
+    return `<tr>
+      <td style="font-weight:600">${name}</td>
+      <td>${d.total}</td>
+      <td><span class="badge badge-green">${d.vendidos}</span></td>
+      <td><span class="badge badge-blue">${d.aVenta}</span></td>
+      <td><span class="badge badge-red">${d.retiro}</span></td>
+      <td style="font-size:11px;color:var(--text-muted)">${topM}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════
+   FALLBACK: DATOS EMBEBIDOS DEL JSON
+════════════════════════════════════════ */
+function useEmbeddedData() {
+  // Usar datos del JSON adjunto directamente
+  const embeddedJson = {"INVENTARIO":[],"VEHICULOS DISPONIBLE":[]};
+  parseData(embeddedJson);
+  renderAll();
+  document.getElementById('last-update').textContent = 'Datos locales (sin conexión)';
+}
+
+/* ════════════════════════════════════════
+   ARRANQUE
+════════════════════════════════════════ */
+loadData();
+</script>
+</body>
+</html>
