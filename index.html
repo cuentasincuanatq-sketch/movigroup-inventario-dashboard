@@ -297,6 +297,9 @@
     <p class="section-title">Financiero</p>
     <div class="kpi-grid" id="kpi-financiero"></div>
 
+    <p class="section-title">Top Zonas</p>
+    <div class="kpi-grid" id="kpi-topzona" style="grid-template-columns:repeat(5,1fr);margin-bottom:8px;"></div>
+
     <p class="section-title">Análisis Visual</p>
     <div class="chart-grid">
       <div class="card">
@@ -347,6 +350,14 @@
       <select class="filter-select" id="fil-asesor" onchange="renderTabla()">
         <option value="">— Asesor —</option>
       </select>
+      <select class="filter-select" id="fil-tipo" onchange="renderTabla()">
+        <option value="">— Virtual / Físico —</option>
+        <option value="VIRTUAL">🖥 Virtual</option>
+        <option value="FISICO">🏢 Físico</option>
+      </select>
+      <select class="filter-select" id="fil-zona" onchange="renderTabla()">
+        <option value="">— Zona / Ciudad —</option>
+      </select>
     </div>
     <div class="card">
       <div class="table-wrap" style="max-height:560px;overflow-y:auto;">
@@ -355,6 +366,7 @@
             <tr>
               <th>#</th>
               <th>Fecha</th>
+              <th>Tipo</th>
               <th>Estado</th>
               <th>Publicación</th>
               <th>Marca</th>
@@ -642,6 +654,8 @@ function renderResumen() {
     kpi('Disponibles', disponibles, 'hoja Disponibles', '🚗', '--cyan'),
     kpi('Con Prenda', conPrenda, pct(conPrenda,total), '🔒', '--purple'),
     kpi('Sin Prenda', total-conPrenda, pct(total-conPrenda,total), '✓', '--gold'),
+    kpi('🖥 Virtuales', inv.filter(r=>esTipo(r)==='VIRTUAL').length, pct(inv.filter(r=>esTipo(r)==='VIRTUAL').length,total), '🖥', '--accent'),
+    kpi('🏢 Físicos',   inv.filter(r=>esTipo(r)==='FISICO').length,  pct(inv.filter(r=>esTipo(r)==='FISICO').length,total),  '🏢', '--cyan'),
   ].join('');
 
   // ── KPIs financieros
@@ -660,6 +674,17 @@ function renderResumen() {
   drawAnio(inv);
   drawCiudades(inv);
   drawUbicacion(disp);
+
+  // KPI Top zona
+  const zonaMap = {};
+  inv.forEach(r => { const z=r.ciudad||'Sin zona'; zonaMap[z]=(zonaMap[z]||0)+1; });
+  const topZona = Object.entries(zonaMap).sort((a,b)=>b[1]-a[1]);
+  const topZonaEl = document.getElementById('kpi-topzona');
+  if (topZonaEl) {
+    topZonaEl.innerHTML = topZona.slice(0,5).map((e,i) =>
+      kpi((i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'')+'Zona: '+e[0], e[1], pct(e[1],total)+' del total', '🏙️', '--accent')
+    ).join('');
+  }
 }
 
 function kpi(label, val, sub, icon, color) {
@@ -801,6 +826,7 @@ function poblarFiltros() {
   fillSelect('fil-marca',       inv.map(r => r.marca));
   fillSelect('fil-combustible', inv.map(r => r.combustible));
   fillSelect('fil-asesor',      inv.map(r => r.asesor));
+  fillSelect('fil-zona',        inv.map(r => r.ciudad));
 
   // Disponibles
   fillSelect('fil-disp-ubic',   DATA.disponibles.map(r => r.ubicacion));
@@ -818,17 +844,25 @@ function estadoBadge(r) {
   return `<span class="badge badge-gray">${r.publicacion || r.estado}</span>`;
 }
 
+function esTipo(r) {
+  return String(r.inventario||'').trim().toUpperCase()==='VIRTUAL'?'VIRTUAL':'FISICO';
+}
+
 function renderTabla() {
   const est  = document.getElementById('fil-estado').value;
   const marc = document.getElementById('fil-marca').value;
   const comb = document.getElementById('fil-combustible').value;
   const ases = document.getElementById('fil-asesor').value;
+  const tipo = document.getElementById('fil-tipo').value;
+  const zona = document.getElementById('fil-zona').value;
 
   let rows = DATA.inventario.filter(r => {
     if (est  && r.publicacion !== est  && r.estado !== est) return false;
     if (marc && r.marca !== marc) return false;
     if (comb && r.combustible !== comb) return false;
     if (ases && r.asesor !== ases) return false;
+    if (tipo && esTipo(r) !== tipo) return false;
+    if (zona && r.ciudad !== zona) return false;
     return true;
   });
 
@@ -837,6 +871,7 @@ function renderTabla() {
     <tr>
       <td style="color:var(--text-muted)">${i+1}</td>
       <td>${fmtDate(r.fecha)}</td>
+      <td>${esTipo(r)==='VIRTUAL'?'<span class="badge badge-purple">🖥 Virtual</span>':'<span class="badge badge-blue">🏢 Físico</span>'}</td>
       <td>${estadoBadge(r)}</td>
       <td style="font-size:10px;color:var(--text-muted)">${r.publicacion}</td>
       <td style="font-weight:600">${r.marca}</td>
