@@ -233,6 +233,19 @@
     .tabs{padding:0 16px;overflow-x:auto;}
     .kpi-grid{grid-template-columns:repeat(2,1fr);}
   }
+  .sv-card{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:10px;padding:16px;position:relative;overflow:hidden;transition:all .2s;}
+  .sv-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .sv-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--sv-bar,#2563eb);}
+  .sv-rank{position:absolute;top:12px;right:14px;font-size:22px;font-weight:800;color:rgba(255,255,255,.12);line-height:1;}
+  .sv-dias{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+  .sv-brand{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:2px;}
+  .sv-model{font-size:16px;font-weight:700;color:#fff;margin-bottom:1px;}
+  .sv-ver{font-size:11px;color:var(--text-muted);margin-bottom:8px;}
+  .sv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+  .sv-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.05);color:var(--text-muted);}
+  .sv-price{font-size:18px;font-weight:700;color:var(--accent);}
+  .sv-placa{font-size:11px;color:var(--text-muted);margin-top:4px;font-family:monospace;}
+
 </style>
 </head>
 <body>
@@ -268,6 +281,7 @@
   <div class="tab" data-tab="inventario">📋 Inventario</div>
   <div class="tab" data-tab="disponibles">🚗 Disponibles</div>
   <div class="tab" data-tab="asesores">👥 Asesores</div>
+  <div class="tab" data-tab="sinvender">🔥 Sin vender</div>
 </nav>
 
 <main>
@@ -415,6 +429,52 @@
     </div>
   </div>
 
+
+  <div class="tab-panel" id="tab-sinvender">
+
+    <p class="section-title">Vehículos sin vender — candidatos para pauta</p>
+    <div class="kpi-grid" id="kpi-sinvender" style="margin-bottom:20px;"></div>
+
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap;">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Antigüedad mínima:</span>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text)"><input type="radio" name="diasFiltro" value="30" onchange="renderSinVender()"> +30 días</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text)"><input type="radio" name="diasFiltro" value="60" onchange="renderSinVender()" checked> +60 días</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text)"><input type="radio" name="diasFiltro" value="90" onchange="renderSinVender()"> +90 días</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text)"><input type="radio" name="diasFiltro" value="120" onchange="renderSinVender()"> +120 días</label>
+      <span id="sv-count" style="margin-left:auto;font-size:12px;font-weight:700;color:var(--text-muted);font-family:monospace;"></span>
+    </div>
+
+    <p class="section-title">🎯 Top 10 — más tiempo sin venderse</p>
+    <div id="sv-top10" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:24px;"></div>
+
+    <div class="chart-grid" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-title">Marcas con más unidades sin vender</div>
+        <div class="chart-wrap tall"><canvas id="chart-sv-marcas"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Distribución por rango de días</div>
+        <div class="chart-wrap"><canvas id="chart-sv-rangos"></canvas></div>
+      </div>
+    </div>
+
+    <p class="section-title">Listado completo sin vender</p>
+    <div class="card">
+      <div class="table-wrap" style="max-height:500px;overflow-y:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Días</th><th>Marca</th><th>Línea</th><th>Año</th>
+              <th>Placa</th><th>Color</th><th>Combustible</th><th>Km</th>
+              <th>Precio venta</th><th>Asesor</th><th>Ciudad</th><th>Prioridad</th>
+            </tr>
+          </thead>
+          <tbody id="tb-sinvender"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
 </main>
 
 <script>
@@ -544,6 +604,7 @@ function renderAll() {
   renderTabla();
   renderDisponibles();
   renderAsesores();
+  renderSinVender();
 }
 
 /* ════════════════════════════════════════
@@ -927,6 +988,123 @@ function useEmbeddedData() {
   parseData(embeddedJson);
   renderAll();
   document.getElementById('last-update').textContent = 'Datos locales (sin conexión)';
+}
+
+/* ════════════════════════════════════════
+   SIN VENDER
+════════════════════════════════════════ */
+function diasEnInventario(fechaStr) {
+  if (!fechaStr) return null;
+  try {
+    var d = new Date(fechaStr);
+    if (isNaN(d)) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  } catch(e) { return null; }
+}
+
+function prioridadSV(dias) {
+  if (dias >= 120) return { bar:'#ef4444', bg:'rgba(239,68,68,.15)', color:'#f87171', label:'🔴 Crítico' };
+  if (dias >= 90)  return { bar:'#f97316', bg:'rgba(249,115,22,.15)', color:'#fb923c', label:'🟠 Alto' };
+  if (dias >= 60)  return { bar:'#f59e0b', bg:'rgba(245,158,11,.15)', color:'#fbbf24', label:'🟡 Medio' };
+  return             { bar:'#2563eb', bg:'rgba(37,99,235,.15)',  color:'#60a5fa', label:'🔵 Normal' };
+}
+
+function renderSinVender() {
+  var inv = DATA.inventario;
+  var checked = document.querySelector('input[name="diasFiltro"]:checked');
+  var minDias = checked ? parseInt(checked.value) : 60;
+
+  var candidatos = [];
+  inv.forEach(function(r) {
+    if (!/a venta/i.test(r.estado)) return;
+    var d = diasEnInventario(r.fecha);
+    if (d === null || d < minDias) return;
+    candidatos.push(Object.assign({}, r, { dias: d }));
+  });
+  candidatos.sort(function(a, b) { return b.dias - a.dias; });
+
+  document.getElementById('sv-count').textContent = candidatos.length + ' vehículos';
+
+  var criticos = candidatos.filter(function(r){ return r.dias >= 120; }).length;
+  var altos    = candidatos.filter(function(r){ return r.dias >= 90 && r.dias < 120; }).length;
+  var maxDias  = candidatos.length ? candidatos[0].dias : 0;
+  var promDias = 0;
+  if (candidatos.length) {
+    var sum = candidatos.reduce(function(a,r){ return a + r.dias; }, 0);
+    promDias = Math.round(sum / candidatos.length);
+  }
+
+  document.getElementById('kpi-sinvender').innerHTML = [
+    kpi('Sin vender (filtro)', candidatos.length, '+'+minDias+' días en inventario', '⚠️', '--orange'),
+    kpi('🔴 Críticos', criticos, '+120 días — pautar YA', '🚨', '--red'),
+    kpi('🟠 Alta prioridad', altos, '90–120 días', '⬆️', '--orange'),
+    kpi('Más antiguo', maxDias + ' días', candidatos.length ? candidatos[0].placa : '—', '⏱️', '--red'),
+    kpi('Promedio', promDias + ' días', 'en inventario', '📊', '--gold'),
+  ].join('');
+
+  // Top 10 cards
+  var top10 = candidatos.slice(0, 10);
+  document.getElementById('sv-top10').innerHTML = top10.map(function(r, i) {
+    var p = prioridadSV(r.dias);
+    return '<div class="sv-card" style="--sv-bar:' + p.bar + '">' +
+      '<div class="sv-rank">#' + (i+1) + '</div>' +
+      '<div class="sv-dias" style="background:' + p.bg + ';color:' + p.color + '">⏱ ' + r.dias + ' días</div>' +
+      '<div class="sv-brand">' + r.marca + '</div>' +
+      '<div class="sv-model">' + r.linea + '</div>' +
+      '<div class="sv-ver">' + (r.version || '—') + '</div>' +
+      '<div class="sv-tags">' +
+        '<span class="sv-tag">📅 ' + (r.anio || '—') + '</span>' +
+        '<span class="sv-tag">⛽ ' + (r.combustible || '—') + '</span>' +
+        '<span class="sv-tag">🛣️ ' + fmtKm(r.km) + '</span>' +
+        '<span class="sv-tag">🏙️ ' + r.ciudad + '</span>' +
+      '</div>' +
+      '<div class="sv-price">' + (r.precioVenta > 0 ? formatM(r.precioVenta) : '—') + '</div>' +
+      '<div class="sv-placa">' + r.placa + ' · ' + r.color + '</div>' +
+      '<div style="margin-top:8px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;background:' + p.bg + ';color:' + p.color + '">' + p.label + ' — pauta prioritaria</div>' +
+    '</div>';
+  }).join('');
+
+  // Chart marcas
+  var marcaMap = {};
+  candidatos.forEach(function(r) { marcaMap[r.marca] = (marcaMap[r.marca]||0)+1; });
+  var marcaTop = Object.entries(marcaMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
+  mkChart('chart-sv-marcas', 'bar',
+    marcaTop.map(function(e){ return e[0]; }),
+    marcaTop.map(function(e){ return e[1]; }),
+    { legend:false, barColor: PALETTE, horizontal:true }
+  );
+
+  // Chart rangos
+  mkChart('chart-sv-rangos', 'doughnut',
+    ['30–59 días','60–89 días','90–119 días','+120 días'],
+    [
+      candidatos.filter(function(r){ return r.dias>=30&&r.dias<60; }).length,
+      candidatos.filter(function(r){ return r.dias>=60&&r.dias<90; }).length,
+      candidatos.filter(function(r){ return r.dias>=90&&r.dias<120; }).length,
+      candidatos.filter(function(r){ return r.dias>=120; }).length,
+    ],
+    { noScales:true, colors:['#2563eb','#f59e0b','#f97316','#ef4444'] }
+  );
+
+  // Tabla completa
+  document.getElementById('tb-sinvender').innerHTML = candidatos.map(function(r, i) {
+    var p = prioridadSV(r.dias);
+    return '<tr>' +
+      '<td style="color:var(--text-muted);font-family:monospace">' + (i+1) + '</td>' +
+      '<td><span style="font-size:13px;font-weight:800;color:' + p.bar + ';font-family:monospace">' + r.dias + '</span><span style="font-size:10px;color:var(--text-muted)"> días</span></td>' +
+      '<td style="font-weight:700;color:#fff">' + r.marca + '</td>' +
+      '<td>' + r.linea + '</td>' +
+      '<td style="font-family:monospace">' + (r.anio||'—') + '</td>' +
+      '<td style="font-family:monospace;letter-spacing:.05em">' + r.placa + '</td>' +
+      '<td style="font-size:11px">' + r.color + '</td>' +
+      '<td><span class="badge badge-gray" style="font-size:9px">' + (r.combustible||'—') + '</span></td>' +
+      '<td style="font-size:11px;font-family:monospace">' + fmtKm(r.km) + '</td>' +
+      '<td style="color:var(--accent);font-weight:700;font-family:monospace">' + (r.precioVenta>0?formatM(r.precioVenta):'—') + '</td>' +
+      '<td style="font-size:11px">' + r.asesor + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">' + r.ciudad + '</td>' +
+      '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:' + p.bg + ';color:' + p.color + '">' + p.label + '</span></td>' +
+    '</tr>';
+  }).join('');
 }
 
 /* ════════════════════════════════════════
