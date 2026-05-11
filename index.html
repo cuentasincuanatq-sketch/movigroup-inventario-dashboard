@@ -350,10 +350,8 @@
       <select class="filter-select" id="fil-asesor" onchange="renderTabla()">
         <option value="">— Asesor —</option>
       </select>
-      <select class="filter-select" id="fil-tipo" onchange="renderTabla()">
-        <option value="">— Virtual / Físico —</option>
-        <option value="VIRTUAL">🖥 Virtual</option>
-        <option value="FISICO">🏢 Físico</option>
+      <select class="filter-select" id="fil-sede" onchange="renderTabla()">
+        <option value="">— Sede —</option>
       </select>
       <select class="filter-select" id="fil-zona" onchange="renderTabla()">
         <option value="">— Zona / Ciudad —</option>
@@ -827,6 +825,7 @@ function poblarFiltros() {
   fillSelect('fil-combustible', inv.map(r => r.combustible));
   fillSelect('fil-asesor',      inv.map(r => r.asesor));
   fillSelect('fil-zona',        inv.map(r => r.ciudad));
+  fillSelect('fil-sede',        inv.map(r => String(r.inventario||'').trim() || null));
 
   // Disponibles
   fillSelect('fil-disp-ubic',   DATA.disponibles.map(r => r.ubicacion));
@@ -853,7 +852,7 @@ function renderTabla() {
   const marc = document.getElementById('fil-marca').value;
   const comb = document.getElementById('fil-combustible').value;
   const ases = document.getElementById('fil-asesor').value;
-  const tipo = document.getElementById('fil-tipo').value;
+  const sede = document.getElementById('fil-sede').value;
   const zona = document.getElementById('fil-zona').value;
 
   let rows = DATA.inventario.filter(r => {
@@ -861,7 +860,7 @@ function renderTabla() {
     if (marc && r.marca !== marc) return false;
     if (comb && r.combustible !== comb) return false;
     if (ases && r.asesor !== ases) return false;
-    if (tipo && esTipo(r) !== tipo) return false;
+    if (sede && String(r.inventario||'').trim() !== sede) return false;
     if (zona && r.ciudad !== zona) return false;
     return true;
   });
